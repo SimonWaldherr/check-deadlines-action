@@ -14,7 +14,19 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
-    - name: Check Deadlines
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v2
+      with:
+        node-version: '14'
+
+    - name: Install dependencies
+      run: npm install
+
+    - name: Build the project
+      run: npm run build
+
+    - name: Run Check Deadlines Action
       uses: ./
       with:
         dir: 'src'
