@@ -1,5 +1,8 @@
 name: 'Check Deadlines'
 description: 'A tool to check for deadlines in source code.'
+branding:
+  icon: 'search'
+  color: 'orange'
 inputs:
   dir:
     description: 'The directory to search for deadlines'
