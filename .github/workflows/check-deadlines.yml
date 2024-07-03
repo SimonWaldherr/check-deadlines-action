@@ -1,0 +1,20 @@
+name: Check Deadlines
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  check-deadlines:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Check Deadlines
+      uses: ./
+      with:
+        dir: 'src'
