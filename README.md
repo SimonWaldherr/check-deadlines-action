@@ -3,7 +3,8 @@
 A GitHub Action to check for deadlines in source code comments. It searches for the `@CHECK` annotation and verifies if the specified deadline has passed. If it has, it prints the line and returns an error.
 
 <details>
-  <summary>`@CHECK` annotation</summary>
+  <summary>@CHECK-Syntax</summary>
+  
   ```
   @CHECK(2024-12-31; Description; Additional; Info; Here)
   ```
