@@ -74,18 +74,9 @@ npm run build
 
 To test the action locally, you can use the [act](https://github.com/nektos/act) tool.
 
-### Publish
+## Trivia
 
-To publish a new version of the action:
-
-1. Tag a new release:
-
-    ```sh
-    git tag -a v1.0.0 -m "First release"
-    git push origin v1.0.0
-    ```
-
-2. Publish to GitHub Marketplace.
+based on the idea and logic behind [my other tool](https://github.com/SimonWaldherr/gotools/tree/main/deadline).
 
 ## License
 
