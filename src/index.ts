@@ -1,12 +1,11 @@
 import * as core from '@actions/core';
-import * as github from '@actions/github';
 import * as fs from 'fs';
 import * as path from 'path';
 
 async function run() {
     try {
-        const dir = core.getInput('dir') || '.';
-        const deadlineExceeded = await checkDeadlines(dir);
+        const dir: string = core.getInput('dir') || '.';
+        const deadlineExceeded: boolean = await checkDeadlines(dir);
         if (deadlineExceeded) {
             core.setFailed('At least one deadline exceeded');
         }
@@ -20,11 +19,11 @@ async function run() {
 }
 
 async function checkDeadlines(dir: string): Promise<boolean> {
-    let deadlineExceeded = false;
+    let deadlineExceeded: boolean = false;
 
-    const files = await getFiles(dir);
+    const files: string[] = await getFiles(dir);
     for (const file of files) {
-        const exceeded = await processFile(file);
+        const exceeded: boolean = await processFile(file);
         if (exceeded) {
             deadlineExceeded = true;
         }
@@ -34,11 +33,11 @@ async function checkDeadlines(dir: string): Promise<boolean> {
 }
 
 async function getFiles(dir: string): Promise<string[]> {
-    const entries = fs.readdirSync(dir, { withFileTypes: true });
-    const files = entries
-        .filter(file => !file.isDirectory())
-        .map(file => path.join(dir, file.name));
-    const folders = entries.filter(folder => folder.isDirectory());
+    const entries: fs.Dirent[] = fs.readdirSync(dir, { withFileTypes: true });
+    const files: string[] = entries
+        .filter((file: fs.Dirent) => !file.isDirectory())
+        .map((file: fs.Dirent) => path.join(dir, file.name));
+    const folders: fs.Dirent[] = entries.filter((folder: fs.Dirent) => folder.isDirectory());
 
     for (const folder of folders) {
         files.push(...await getFiles(path.join(dir, folder.name)));
@@ -48,17 +47,31 @@ async function getFiles(dir: string): Promise<string[]> {
 }
 
 async function processFile(filePath: string): Promise<boolean> {
-    const data = fs.readFileSync(filePath, 'utf8');
-    const regex = /@CHECK\((\d{4}-\d{2}-\d{2});[^;]*;[^;]*;[^;]*;[^;]*\)/g;
-    const now = new Date();
-    let match;
-    let deadlineExceeded = false;
+    const data: string = fs.readFileSync(filePath, 'utf8');
+    const regex: RegExp = /@CHECK\((\d{4}-\d{2}-\d{2});[^)]+\)/g;
+    const now: Date = new Date();
+    let match: RegExpExecArray | null;
+    let deadlineExceeded: boolean = false;
 
     while ((match = regex.exec(data)) !== null) {
-        const deadline = new Date(match[1]);
+        const deadline: Date = new Date(match[1]);
+        // ermittle Zeilennummer
+
+        let line = 1;
+        for (let i = 0; i < match.index; i++) {
+            if (data[i] === '\n') {
+                line++;
+            }
+        }
+
+        let deadline7 = new Date(deadline);
+        deadline7.setDate(deadline.getDate() - 7);
+
         if (now > deadline) {
-            core.warning(`Deadline exceeded in file: ${filePath}, DEADLINE: ${match[0]}`);
+            console.warn(`::warning file=${filePath},line=${line}::Deadline exceeded in file: ${filePath}, DEADLINE: ${match[0]}`);
             deadlineExceeded = true;
+        } else if (now > deadline7) {
+            console.info(`::warning file=${filePath},line=${line}::Deadline in less than 7 days in file: ${filePath}, DEADLINE: ${match[0]}`);
         }
     }
 

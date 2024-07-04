@@ -71,9 +71,9 @@ function getFiles(dir) {
     return __awaiter(this, void 0, void 0, function* () {
         const entries = fs.readdirSync(dir, { withFileTypes: true });
         const files = entries
-            .filter(file => !file.isDirectory())
-            .map(file => path.join(dir, file.name));
-        const folders = entries.filter(folder => folder.isDirectory());
+            .filter((file) => !file.isDirectory())
+            .map((file) => path.join(dir, file.name));
+        const folders = entries.filter((folder) => folder.isDirectory());
         for (const folder of folders) {
             files.push(...yield getFiles(path.join(dir, folder.name)));
         }
@@ -83,15 +83,27 @@ function getFiles(dir) {
 function processFile(filePath) {
     return __awaiter(this, void 0, void 0, function* () {
         const data = fs.readFileSync(filePath, 'utf8');
-        const regex = /@CHECK\((\d{4}-\d{2}-\d{2});[^;]*;[^;]*;[^;]*;[^;]*\)/g;
+        const regex = /@CHECK\((\d{4}-\d{2}-\d{2});[^)]+\)/g;
         const now = new Date();
         let match;
         let deadlineExceeded = false;
         while ((match = regex.exec(data)) !== null) {
             const deadline = new Date(match[1]);
+            // ermittle Zeilennummer
+            let line = 1;
+            for (let i = 0; i < match.index; i++) {
+                if (data[i] === '\n') {
+                    line++;
+                }
+            }
+            let deadline7 = new Date(deadline);
+            deadline7.setDate(deadline.getDate() - 7);
             if (now > deadline) {
-                core.warning(`Deadline exceeded in file: ${filePath}, DEADLINE: ${match[0]}`);
+                console.warn(`::warning file=${filePath},line=${line}::Deadline exceeded in file: ${filePath}, DEADLINE: ${match[0]}`);
                 deadlineExceeded = true;
+            }
+            else if (now > deadline7) {
+                console.info(`::warning file=${filePath},line=${line}::Deadline in less than 7 days in file: ${filePath}, DEADLINE: ${match[0]}`);
             }
         }
         return deadlineExceeded;

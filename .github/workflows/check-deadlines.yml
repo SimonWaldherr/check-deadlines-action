@@ -29,4 +29,4 @@ jobs:
     - name: Run Check Deadlines Action
       uses: ./
       with:
-        dir: 'src'
+        dir: '.'
