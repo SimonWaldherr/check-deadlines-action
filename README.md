@@ -6,7 +6,7 @@ A GitHub Action to check for deadlines in source code comments. It searches for 
   <summary>@CHECK-Syntax</summary>
   
   ```
-  @CHECK(2024-12-31; Description; Additional; Info; Here)
+  @CHECK(2024-06-30; Description; Additional; Info; Here)
   ```
   
   1. **Date (YYYY-MM-DD)**: The first component is the deadline date in the `YYYY-MM-DD` format. This is the date by which the task or reminder should be completed. The action checks this date against the current date to determine if the deadline has passed.
@@ -53,11 +53,11 @@ jobs:
 Here's an example of how to use the `@CHECK` annotation in your source code:
 
 ```javascript
-// @CHECK(2024-12-31; Description; Additional; Info; Here)
+// @CHECK(2024-05-01; Description; Additional; Info; Here)
 // This is a line of code that needs to be checked for a deadline.
 ```
 
-If the current date is after `2024-12-31`, this action will print a warning and fail the check.
+If the current date is after `2024-05-01`, this action will print a warning and fail the check.
 
 ## Development
 
