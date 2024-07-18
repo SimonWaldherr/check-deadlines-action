@@ -1,5 +1,7 @@
 # Check Deadlines Action
 
+[![Check Deadlines](https://github.com/SimonWaldherr/check-deadlines-action/actions/workflows/check-deadlines.yml/badge.svg)](https://github.com/SimonWaldherr/check-deadlines-action/actions/workflows/check-deadlines.yml)
+
 A GitHub Action to check for deadlines in source code comments. It searches for the `@CHECK` annotation and verifies if the specified deadline has passed. If it has, it [prints the line and returns an error](https://github.com/SimonWaldherr/check-deadlines-action/actions/runs/9997557613/job/27634393762).
 
 <details>
