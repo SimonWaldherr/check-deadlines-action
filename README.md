@@ -1,5 +1,6 @@
 # Check Deadlines Action
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.13647064.svg)](https://doi.org/10.5281/zenodo.13647064)
 [![Check Deadlines](https://github.com/SimonWaldherr/check-deadlines-action/actions/workflows/check-deadlines.yml/badge.svg)](https://github.com/SimonWaldherr/check-deadlines-action/actions/workflows/check-deadlines.yml)
 
 **Check Deadlines Action** is a powerful GitHub Action designed to help you manage time-sensitive tasks directly within your codebase. By embedding deadlines in your source code comments using the `@CHECK` annotation, this action ensures that you never miss a critical deadline. It automatically scans your codebase, identifies any deadlines that have passed, and notifies you by failing the workflow, prompting immediate attention to overdue tasks.
