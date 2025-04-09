@@ -18,7 +18,7 @@
 The `@CHECK` annotation is a simple yet powerful tool that allows you to embed deadlines directly in your source code. Here's how to use it:
 
 ```yaml
-@CHECK(2025-04-10; Description; Additional; Info; Here)
+@CHECK(2025-04-08; Description; Additional; Info; Here)
 ```
 
 - **Date (YYYY-MM-DD):** The first component is the deadline date in the `YYYY-MM-DD` format. This date indicates when the task should be completed. The action compares this date against the current date to determine if the deadline has passed.
