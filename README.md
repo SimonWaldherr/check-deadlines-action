@@ -18,7 +18,7 @@
 The `@CHECK` annotation is a simple yet powerful tool that allows you to embed deadlines directly in your source code. Here's how to use it:
 
 ```yaml
-@CHECK(2025-04-08; Description; Additional; Info; Here)
+@CHECK(2026-12-31; Description; Additional; Info; Here)
 ```
 
 - **Date (YYYY-MM-DD):** The first component is the deadline date in the `YYYY-MM-DD` format. This date indicates when the task should be completed. The action compares this date against the current date to determine if the deadline has passed.
@@ -38,7 +38,8 @@ function exampleFunction() {
 }
 ```
 
-If this deadline passes without the task being completed, the action will trigger a warning and fail the check during your CI/CD run.
+If this deadline passes without the task being completed, the action will trigger a [warning and fail the check](https://github.com/SimonWaldherr/check-deadlines-action/actions/runs/14362124092/job/40266059964) during your CI/CD run.  
+You can configure the github workflow to run on each push (or any other event) or [schedule via cron](https://github.com/SimonWaldherr/check-deadlines-action/blob/3bc3a739ddc947461a5f428f99095ef23209434e/.github/workflows/check-deadlines.yml#L11).  
 
 ## Usage
 
