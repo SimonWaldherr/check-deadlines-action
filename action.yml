@@ -8,6 +8,18 @@ inputs:
     description: 'The directory to search for deadlines'
     required: false
     default: '.'
+  warn-only:
+    description: 'Emit warnings without failing the action when deadlines are exceeded'
+    required: false
+    default: 'false'
+  warning-days:
+    description: 'Number of days before the deadline to start emitting warning notices'
+    required: false
+    default: '7'
+  exclude:
+    description: 'Comma-separated list of directory or file names to exclude from scanning'
+    required: false
+    default: ''
 runs:
-  using: 'node12'
+  using: 'node20'
   main: 'dist/index.js'

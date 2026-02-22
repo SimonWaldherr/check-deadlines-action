@@ -15,13 +15,23 @@ var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (
 }) : function(o, v) {
     o["default"] = v;
 });
-var __importStar = (this && this.__importStar) || function (mod) {
-    if (mod && mod.__esModule) return mod;
-    var result = {};
-    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
-    __setModuleDefault(result, mod);
-    return result;
-};
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -46,10 +56,23 @@ function run() {
         try {
             // Retrieve the directory to search for files. Defaults to the current directory if not specified.
             const dir = core.getInput('dir') || '.';
+            // When true, only emit warnings without failing the action even if deadlines are exceeded.
+            const warnOnly = core.getInput('warn-only').toLowerCase() === 'true';
+            // Number of days before the deadline to start emitting a warning notice.
+            const warningDaysRaw = parseInt(core.getInput('warning-days') || '7', 10);
+            if (isNaN(warningDaysRaw) || warningDaysRaw < 0) {
+                throw new Error(`Invalid 'warning-days' value: "${core.getInput('warning-days')}". Must be a non-negative integer.`);
+            }
+            const warningDays = warningDaysRaw;
+            // Comma-separated list of directory or file names to exclude from scanning.
+            const excludeInput = core.getInput('exclude');
+            const exclude = excludeInput
+                ? excludeInput.split(',').map((s) => s.trim()).filter(Boolean)
+                : [];
             // Check if any file in the specified directory (and subdirectories) has an exceeded deadline.
-            const deadlineExceeded = yield checkDeadlines(dir);
-            // If at least one deadline is exceeded, mark the GitHub Action as failed.
-            if (deadlineExceeded) {
+            const deadlineExceeded = checkDeadlines(dir, warningDays, exclude);
+            // If at least one deadline is exceeded and warn-only is not set, mark the action as failed.
+            if (deadlineExceeded && !warnOnly) {
                 core.setFailed('At least one deadline exceeded');
             }
         }
@@ -67,104 +90,92 @@ function run() {
 /**
  * Recursively checks all files in the given directory for deadline markers.
  *
- * @param dir - The directory path from where to start scanning files.
- * @returns A Promise that resolves to true if any file has a deadline that has been exceeded.
+ * @param dir         - The directory path from where to start scanning files.
+ * @param warningDays - Number of days before the deadline to emit a warning notice.
+ * @param exclude     - List of directory or file names to skip.
+ * @returns True if any file has a deadline that has been exceeded.
  */
-function checkDeadlines(dir) {
-    return __awaiter(this, void 0, void 0, function* () {
-        // Initialize a flag to track if any deadlines have been exceeded.
-        let deadlineExceeded = false;
-        // Retrieve all files (including those in subdirectories) from the directory.
-        const files = yield getFiles(dir);
-        // Process each file to check if deadlines have been exceeded.
-        for (const file of files) {
-            // Process the file and check its content for deadline markers.
-            const exceeded = yield processFile(file);
-            // If any file shows that its deadline is exceeded, update the flag.
-            if (exceeded) {
-                deadlineExceeded = true;
-            }
+function checkDeadlines(dir, warningDays, exclude) {
+    let deadlineExceeded = false;
+    const files = getFiles(dir, exclude);
+    for (const file of files) {
+        if (processFile(file, warningDays)) {
+            deadlineExceeded = true;
         }
-        // Return the overall result. True if at least one exceeded deadline is found.
-        return deadlineExceeded;
-    });
+    }
+    return deadlineExceeded;
 }
 /**
  * Recursively retrieves all file paths from the specified directory and its subdirectories.
+ * Hidden directories (names starting with '.') and any names listed in `exclude` are skipped.
  *
- * @param dir - The directory from where files are listed.
- * @returns A Promise that resolves to an array of file paths.
+ * @param dir     - The directory from where files are listed.
+ * @param exclude - List of directory or file names to skip.
+ * @returns An array of file paths.
  */
-function getFiles(dir) {
-    return __awaiter(this, void 0, void 0, function* () {
-        // Read the contents of the directory, including details about whether each entry is a file or a directory.
-        const entries = fs.readdirSync(dir, { withFileTypes: true });
-        // Filter out files from the directory entries and create their full paths.
-        const files = entries
-            .filter((entry) => !entry.isDirectory()) // Only select entries that are files.
-            .map((entry) => path.join(dir, entry.name)); // Create full paths for these files.
-        // Filter out directories to search them recursively.
-        const folders = entries.filter((entry) => entry.isDirectory());
-        // Recursively get files from each subdirectory and add them to the list.
-        for (const folder of folders) {
-            // Construct the path for the subdirectory and fetch its files.
-            const subDirFiles = yield getFiles(path.join(dir, folder.name));
-            files.push(...subDirFiles); // Merge the files from the subdirectory into the main files array.
-        }
-        // Return the complete list of files found.
-        return files;
-    });
+function getFiles(dir, exclude) {
+    const entries = fs.readdirSync(dir, { withFileTypes: true });
+    const files = entries
+        .filter((entry) => !entry.isDirectory())
+        .filter((entry) => !exclude.includes(entry.name))
+        .map((entry) => path.join(dir, entry.name));
+    const folders = entries.filter((entry) => entry.isDirectory() &&
+        !entry.name.startsWith('.') &&
+        !exclude.includes(entry.name));
+    for (const folder of folders) {
+        files.push(...getFiles(path.join(dir, folder.name), exclude));
+    }
+    return files;
 }
 /**
  * Processes a single file to check if it contains deadline markers and whether deadlines are exceeded.
  *
  * The deadline markers are expected to be in the format: @CHECK(YYYY-MM-DD; any text)
  *
- * @param filePath - The full path of the file to be processed.
- * @returns A Promise that resolves to true if any deadline in the file is exceeded.
+ * @param filePath    - The full path of the file to be processed.
+ * @param warningDays - Number of days before the deadline to emit a warning notice.
+ * @returns True if any deadline in the file is exceeded.
  */
-function processFile(filePath) {
-    return __awaiter(this, void 0, void 0, function* () {
-        // Read the file content as a UTF-8 encoded string.
-        const data = fs.readFileSync(filePath, 'utf8');
-        // Regular expression to match the deadline markers.
-        // It captures a date in the format YYYY-MM-DD followed by a semicolon and any characters until the closing parenthesis.
-        const regex = /@CHECK\((\d{4}-\d{2}-\d{2});[^)]+\)/g;
-        // Get the current date and time.
-        const now = new Date();
-        // Variable to track if any deadline in this file is exceeded.
-        let deadlineExceeded = false;
-        // This loop goes through all matches of the regex in the file data.
-        let match;
-        while ((match = regex.exec(data)) !== null) {
-            // Parse the deadline date from the first captured group of the regex.
-            const deadline = new Date(match[1]);
-            // Determine the line number where the deadline marker is located.
-            // We count the number of newline characters from the start of the file until the index of the match.
-            let line = 1;
-            for (let i = 0; i < match.index; i++) {
-                if (data[i] === '\n') {
-                    line++;
-                }
-            }
-            // Calculate the date 7 days before the actual deadline.
-            let deadline7 = new Date(deadline);
-            deadline7.setDate(deadline.getDate() - 7);
-            // Check if the current date is past the deadline.
-            if (now > deadline) {
-                // Log a warning in GitHub Actions annotation format, including file name and line number.
-                console.warn(`::warning file=${filePath},line=${line}::Deadline exceeded in file: ${filePath}, DEADLINE: ${match[0]}`);
-                deadlineExceeded = true;
-            }
-            // Check if the current date is within 7 days of the deadline.
-            else if (now > deadline7) {
-                // Log an informational message indicating that the deadline is approaching in less than 7 days.
-                console.info(`::warning file=${filePath},line=${line}::Deadline in less than 7 days in file: ${filePath}, DEADLINE: ${match[0]}`);
+function processFile(filePath, warningDays) {
+    let data;
+    try {
+        data = fs.readFileSync(filePath, 'utf8');
+    }
+    catch (_a) {
+        // Skip files that cannot be read as UTF-8 (e.g. binary files).
+        return false;
+    }
+    // Regular expression to match the deadline markers.
+    // It captures a date in the format YYYY-MM-DD followed by a semicolon and any characters until the closing parenthesis.
+    const regex = /@CHECK\((\d{4}-\d{2}-\d{2});[^)]+\)/g;
+    // Get the current date and time.
+    const now = new Date();
+    let deadlineExceeded = false;
+    let match;
+    while ((match = regex.exec(data)) !== null) {
+        // Parse the deadline date from the first captured group of the regex.
+        const deadline = new Date(match[1]);
+        // Determine the line number where the deadline marker is located.
+        let line = 1;
+        for (let i = 0; i < match.index; i++) {
+            if (data[i] === '\n') {
+                line++;
             }
         }
-        // Return whether any deadline in the file was exceeded.
-        return deadlineExceeded;
-    });
+        // Calculate the date `warningDays` days before the actual deadline.
+        const warningThreshold = new Date(deadline);
+        warningThreshold.setDate(deadline.getDate() - warningDays);
+        // Check if the current date is past the deadline.
+        if (now > deadline) {
+            core.warning(`Deadline exceeded: ${match[0]}`, { file: filePath, startLine: line });
+            deadlineExceeded = true;
+        }
+        else if (now > warningThreshold) {
+            // Deadline is approaching within the warning window.
+            core.notice(`Deadline in less than ${warningDays} days: ${match[0]}`, { file: filePath, startLine: line });
+        }
+    }
+    return deadlineExceeded;
 }
 // Execute the main function.
 run();
