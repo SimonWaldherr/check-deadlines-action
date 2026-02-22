@@ -3,13 +3,17 @@
   "version": "2.0.0",
   "main": "dist/index.js",
   "scripts": {
-    "build": "tsc"
+    "build": "ncc build src/index.ts -o dist"
   },
   "dependencies": {
-    "@actions/core": "^3.0.0"
+    "@actions/core": "^1.11.1"
+  },
+  "overrides": {
+    "undici": "^6.23.0"
   },
   "devDependencies": {
     "@types/node": "^20.14.9",
+    "@vercel/ncc": "^0.38.4",
     "typescript": "^5.0.0"
   }
 }
