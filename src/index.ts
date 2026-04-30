@@ -3,8 +3,10 @@ import * as core from '@actions/core';  // Provides core functionalities for Git
 import * as fs from 'fs';              // File system module for reading directories and files.
 import * as path from 'path';          // Path module for handling file and directory paths.
 
-const CHECK_PATTERN = /@CHECK\((\d{4}-\d{2}-\d{2});[^)]+\)/g;
+const CHECK_START_PATTERN = /@CHECK\(/g;
+const MENTION_PATTERN = /^@[^\s;]+$/;
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
+const DEFAULT_EXCLUDE = ['node_modules', 'dist'];
 
 /**
  * The main function that is executed when the GitHub Action is triggered.
@@ -28,9 +30,7 @@ async function run(): Promise<void> {
 
         // Comma-separated list of directory or file names to exclude from scanning.
         const excludeInput: string = core.getInput('exclude');
-        const exclude: string[] = excludeInput
-            ? excludeInput.split(',').map((s: string) => s.trim()).filter(Boolean)
-            : [];
+        const exclude: string[] = parseExcludeInput(excludeInput);
 
         // Check if any file in the specified directory (and subdirectories) has an exceeded deadline.
         const deadlineExceeded: boolean = checkDeadlines(dir, warningDays, exclude);
@@ -104,7 +104,7 @@ function getFiles(dir: string, exclude: string[]): string[] {
 /**
  * Processes a single file to check if it contains deadline markers and whether deadlines are exceeded.
  *
- * The deadline markers are expected to be in the format: @CHECK(YYYY-MM-DD; any text)
+ * The deadline markers contain a YYYY-MM-DD date followed by optional text fields.
  *
  * @param filePath    - The full path of the file to be processed.
  * @param warningDays - Number of days before the deadline to emit a warning notice.
@@ -123,9 +123,8 @@ function processFile(filePath: string, warningDays: number): boolean {
 
     let deadlineExceeded: boolean = false;
 
-    let match: RegExpExecArray | null;
-    while ((match = CHECK_PATTERN.exec(data)) !== null) {
-        const deadlineUtc = parseDeadlineDate(match[1]);
+    for (const match of findCheckAnnotations(data)) {
+        const parsedCheck = parseCheckAnnotation(match.value);
 
         // Determine the line number where the deadline marker is located.
         let line = 1;
@@ -135,25 +134,28 @@ function processFile(filePath: string, warningDays: number): boolean {
             }
         }
 
-        if (deadlineUtc === null) {
+        if (parsedCheck === null) {
             core.warning(
-                `Invalid deadline date: ${match[1]}`,
+                `Invalid @CHECK annotation: ${match.text}`,
                 { file: filePath, startLine: line }
             );
             continue;
         }
 
+        const { deadlineUtc, mentions } = parsedCheck;
+        const mentionSuffix = formatMentionSuffix(mentions);
+
         const warningThresholdUtc = deadlineUtc - (warningDays * MS_PER_DAY);
 
         if (todayUtc > deadlineUtc) {
             core.warning(
-                `Deadline exceeded: ${match[0]}`,
+                `Deadline exceeded: ${match.text}${mentionSuffix}`,
                 { file: filePath, startLine: line }
             );
             deadlineExceeded = true;
         } else if (todayUtc >= warningThresholdUtc) {
             core.notice(
-                `Deadline in less than ${warningDays} days: ${match[0]}`,
+                `Deadline in less than ${warningDays} days: ${match.text}${mentionSuffix}`,
                 { file: filePath, startLine: line }
             );
         }
@@ -166,6 +168,45 @@ function getUtcDayTimestamp(date: Date): number {
     return Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
 }
 
+/**
+ * Finds complete @CHECK annotations in file contents while preserving parentheses inside fields.
+ *
+ * @param data - The file contents to scan.
+ * @yields Objects containing the full annotation text, the inner annotation value, and the annotation start index.
+ */
+function* findCheckAnnotations(data: string): Generator<{ text: string; value: string; index: number }> {
+    let match: RegExpExecArray | null;
+    while ((match = CHECK_START_PATTERN.exec(data)) !== null) {
+        const startIndex = match.index;
+        const valueStartIndex = CHECK_START_PATTERN.lastIndex;
+        let depth = 1;
+
+        for (let i = valueStartIndex; i < data.length; i++) {
+            if (data[i] === '(') {
+                depth++;
+            } else if (data[i] === ')') {
+                depth--;
+            }
+
+            if (depth === 0) {
+                yield {
+                    text: data.slice(startIndex, i + 1),
+                    value: data.slice(valueStartIndex, i),
+                    index: startIndex
+                };
+                CHECK_START_PATTERN.lastIndex = i + 1;
+                break;
+            }
+        }
+    }
+}
+
+/**
+ * Parses a YYYY-MM-DD deadline as a UTC calendar-day timestamp.
+ *
+ * @param value - The date text to parse.
+ * @returns The UTC timestamp for a valid calendar date, otherwise null.
+ */
 function parseDeadlineDate(value: string): number | null {
     const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
     if (!match) {
@@ -190,5 +231,64 @@ function parseDeadlineDate(value: string): number | null {
     return deadlineUtc;
 }
 
+/**
+ * Parses the inner value of an @CHECK annotation.
+ *
+ * @param value - Semicolon-delimited annotation fields with the deadline date first.
+ * @returns Parsed deadline timestamp and mention metadata, or null when the date is invalid.
+ */
+function parseCheckAnnotation(value: string): { deadlineUtc: number; mentions: string[] } | null {
+    const parts = value.split(';').map((part) => part.trim());
+    if (parts[0] === '') {
+        return null;
+    }
+
+    const deadlineUtc = parseDeadlineDate(parts[0]);
+    if (deadlineUtc === null) {
+        return null;
+    }
+
+    const mentions = parts.slice(1).filter((part) => MENTION_PATTERN.test(part));
+
+    return { deadlineUtc, mentions };
+}
+
+/**
+ * Formats mention metadata for workflow annotation messages.
+ *
+ * @param mentions - Mention fields extracted from an @CHECK annotation.
+ * @returns A formatted suffix, or an empty string when no mentions were found.
+ */
+function formatMentionSuffix(mentions: string[]): string {
+    if (mentions.length === 0) {
+        return '';
+    }
+
+    return ` (mentions: ${mentions.join(', ')})`;
+}
+
+/**
+ * Combines default scan exclusions with user-provided exclusions.
+ *
+ * @param value - Comma-separated action input value.
+ * @returns A de-duplicated list of names to skip during recursive scanning.
+ */
+function parseExcludeInput(value: string): string[] {
+    const configuredExcludes = value
+        ? value.split(',').map((entry: string) => entry.trim()).filter(Boolean)
+        : [];
+
+    return Array.from(new Set([...DEFAULT_EXCLUDE, ...configuredExcludes]));
+}
+
+export {
+    findCheckAnnotations,
+    parseCheckAnnotation,
+    formatMentionSuffix,
+    parseExcludeInput
+};
+
 // Execute the main function.
-run();
+if (require.main === module) {
+    run();
+}

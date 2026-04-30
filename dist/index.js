@@ -31073,12 +31073,18 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.findCheckAnnotations = findCheckAnnotations;
+exports.parseCheckAnnotation = parseCheckAnnotation;
+exports.formatMentionSuffix = formatMentionSuffix;
+exports.parseExcludeInput = parseExcludeInput;
 // Import necessary modules from the GitHub Actions toolkit and Node.js standard libraries.
 const core = __importStar(__nccwpck_require__(7484)); // Provides core functionalities for GitHub Actions such as input retrieval and logging.
 const fs = __importStar(__nccwpck_require__(9896)); // File system module for reading directories and files.
 const path = __importStar(__nccwpck_require__(6928)); // Path module for handling file and directory paths.
-const CHECK_PATTERN = /@CHECK\((\d{4}-\d{2}-\d{2});[^)]+\)/g;
+const CHECK_START_PATTERN = /@CHECK\(/g;
+const MENTION_PATTERN = /^@[^\s;]+$/;
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
+const DEFAULT_EXCLUDE = ['node_modules', 'dist'];
 /**
  * The main function that is executed when the GitHub Action is triggered.
  * It retrieves the directory input, checks for deadline conditions in files,
@@ -31099,9 +31105,7 @@ function run() {
             const warningDays = warningDaysRaw;
             // Comma-separated list of directory or file names to exclude from scanning.
             const excludeInput = core.getInput('exclude');
-            const exclude = excludeInput
-                ? excludeInput.split(',').map((s) => s.trim()).filter(Boolean)
-                : [];
+            const exclude = parseExcludeInput(excludeInput);
             // Check if any file in the specified directory (and subdirectories) has an exceeded deadline.
             const deadlineExceeded = checkDeadlines(dir, warningDays, exclude);
             // If at least one deadline is exceeded and warn-only is not set, mark the action as failed.
@@ -31163,7 +31167,7 @@ function getFiles(dir, exclude) {
 /**
  * Processes a single file to check if it contains deadline markers and whether deadlines are exceeded.
  *
- * The deadline markers are expected to be in the format: @CHECK(YYYY-MM-DD; any text)
+ * The deadline markers contain a YYYY-MM-DD date followed by optional text fields.
  *
  * @param filePath    - The full path of the file to be processed.
  * @param warningDays - Number of days before the deadline to emit a warning notice.
@@ -31180,9 +31184,8 @@ function processFile(filePath, warningDays) {
     }
     const todayUtc = getUtcDayTimestamp(new Date());
     let deadlineExceeded = false;
-    let match;
-    while ((match = CHECK_PATTERN.exec(data)) !== null) {
-        const deadlineUtc = parseDeadlineDate(match[1]);
+    for (const match of findCheckAnnotations(data)) {
+        const parsedCheck = parseCheckAnnotation(match.value);
         // Determine the line number where the deadline marker is located.
         let line = 1;
         for (let i = 0; i < match.index; i++) {
@@ -31190,17 +31193,19 @@ function processFile(filePath, warningDays) {
                 line++;
             }
         }
-        if (deadlineUtc === null) {
-            core.warning(`Invalid deadline date: ${match[1]}`, { file: filePath, startLine: line });
+        if (parsedCheck === null) {
+            core.warning(`Invalid @CHECK annotation: ${match.text}`, { file: filePath, startLine: line });
             continue;
         }
+        const { deadlineUtc, mentions } = parsedCheck;
+        const mentionSuffix = formatMentionSuffix(mentions);
         const warningThresholdUtc = deadlineUtc - (warningDays * MS_PER_DAY);
         if (todayUtc > deadlineUtc) {
-            core.warning(`Deadline exceeded: ${match[0]}`, { file: filePath, startLine: line });
+            core.warning(`Deadline exceeded: ${match.text}${mentionSuffix}`, { file: filePath, startLine: line });
             deadlineExceeded = true;
         }
         else if (todayUtc >= warningThresholdUtc) {
-            core.notice(`Deadline in less than ${warningDays} days: ${match[0]}`, { file: filePath, startLine: line });
+            core.notice(`Deadline in less than ${warningDays} days: ${match.text}${mentionSuffix}`, { file: filePath, startLine: line });
         }
     }
     return deadlineExceeded;
@@ -31208,6 +31213,43 @@ function processFile(filePath, warningDays) {
 function getUtcDayTimestamp(date) {
     return Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
 }
+/**
+ * Finds complete @CHECK annotations in file contents while preserving parentheses inside fields.
+ *
+ * @param data - The file contents to scan.
+ * @yields Objects containing the full annotation text, the inner annotation value, and the annotation start index.
+ */
+function* findCheckAnnotations(data) {
+    let match;
+    while ((match = CHECK_START_PATTERN.exec(data)) !== null) {
+        const startIndex = match.index;
+        const valueStartIndex = CHECK_START_PATTERN.lastIndex;
+        let depth = 1;
+        for (let i = valueStartIndex; i < data.length; i++) {
+            if (data[i] === '(') {
+                depth++;
+            }
+            else if (data[i] === ')') {
+                depth--;
+            }
+            if (depth === 0) {
+                yield {
+                    text: data.slice(startIndex, i + 1),
+                    value: data.slice(valueStartIndex, i),
+                    index: startIndex
+                };
+                CHECK_START_PATTERN.lastIndex = i + 1;
+                break;
+            }
+        }
+    }
+}
+/**
+ * Parses a YYYY-MM-DD deadline as a UTC calendar-day timestamp.
+ *
+ * @param value - The date text to parse.
+ * @returns The UTC timestamp for a valid calendar date, otherwise null.
+ */
 function parseDeadlineDate(value) {
     const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
     if (!match) {
@@ -31225,8 +31267,52 @@ function parseDeadlineDate(value) {
     }
     return deadlineUtc;
 }
+/**
+ * Parses the inner value of an @CHECK annotation.
+ *
+ * @param value - Semicolon-delimited annotation fields with the deadline date first.
+ * @returns Parsed deadline timestamp and mention metadata, or null when the date is invalid.
+ */
+function parseCheckAnnotation(value) {
+    const parts = value.split(';').map((part) => part.trim());
+    if (parts[0] === '') {
+        return null;
+    }
+    const deadlineUtc = parseDeadlineDate(parts[0]);
+    if (deadlineUtc === null) {
+        return null;
+    }
+    const mentions = parts.slice(1).filter((part) => MENTION_PATTERN.test(part));
+    return { deadlineUtc, mentions };
+}
+/**
+ * Formats mention metadata for workflow annotation messages.
+ *
+ * @param mentions - Mention fields extracted from an @CHECK annotation.
+ * @returns A formatted suffix, or an empty string when no mentions were found.
+ */
+function formatMentionSuffix(mentions) {
+    if (mentions.length === 0) {
+        return '';
+    }
+    return ` (mentions: ${mentions.join(', ')})`;
+}
+/**
+ * Combines default scan exclusions with user-provided exclusions.
+ *
+ * @param value - Comma-separated action input value.
+ * @returns A de-duplicated list of names to skip during recursive scanning.
+ */
+function parseExcludeInput(value) {
+    const configuredExcludes = value
+        ? value.split(',').map((entry) => entry.trim()).filter(Boolean)
+        : [];
+    return Array.from(new Set([...DEFAULT_EXCLUDE, ...configuredExcludes]));
+}
 // Execute the main function.
-run();
+if (require.main === require.cache[eval('__filename')]) {
+    run();
+}
 
 
 /***/ }),
