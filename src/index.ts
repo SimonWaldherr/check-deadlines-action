@@ -168,6 +168,12 @@ function getUtcDayTimestamp(date: Date): number {
     return Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
 }
 
+/**
+ * Finds complete @CHECK annotations in file contents while preserving parentheses inside fields.
+ *
+ * @param data - The file contents to scan.
+ * @yields Objects containing the full annotation text, the inner annotation value, and the annotation start index.
+ */
 function* findCheckAnnotations(data: string): Generator<{ text: string; value: string; index: number }> {
     let match: RegExpExecArray | null;
     while ((match = CHECK_START_PATTERN.exec(data)) !== null) {
@@ -195,6 +201,12 @@ function* findCheckAnnotations(data: string): Generator<{ text: string; value: s
     }
 }
 
+/**
+ * Parses a YYYY-MM-DD deadline as a UTC calendar-day timestamp.
+ *
+ * @param value - The date text to parse.
+ * @returns The UTC timestamp for a valid calendar date, otherwise null.
+ */
 function parseDeadlineDate(value: string): number | null {
     const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
     if (!match) {
@@ -219,6 +231,12 @@ function parseDeadlineDate(value: string): number | null {
     return deadlineUtc;
 }
 
+/**
+ * Parses the inner value of an @CHECK annotation.
+ *
+ * @param value - Semicolon-delimited annotation fields with the deadline date first.
+ * @returns Parsed deadline timestamp and mention metadata, or null when the date is invalid.
+ */
 function parseCheckAnnotation(value: string): { deadlineUtc: number; mentions: string[] } | null {
     const parts = value.split(';').map((part) => part.trim());
     if (parts[0] === '') {
@@ -235,6 +253,12 @@ function parseCheckAnnotation(value: string): { deadlineUtc: number; mentions: s
     return { deadlineUtc, mentions };
 }
 
+/**
+ * Formats mention metadata for workflow annotation messages.
+ *
+ * @param mentions - Mention fields extracted from an @CHECK annotation.
+ * @returns A formatted suffix, or an empty string when no mentions were found.
+ */
 function formatMentionSuffix(mentions: string[]): string {
     if (mentions.length === 0) {
         return '';
@@ -243,6 +267,12 @@ function formatMentionSuffix(mentions: string[]): string {
     return ` (mentions: ${mentions.join(', ')})`;
 }
 
+/**
+ * Combines default scan exclusions with user-provided exclusions.
+ *
+ * @param value - Comma-separated action input value.
+ * @returns A de-duplicated list of names to skip during recursive scanning.
+ */
 function parseExcludeInput(value: string): string[] {
     const configuredExcludes = value
         ? value.split(',').map((entry: string) => entry.trim()).filter(Boolean)
