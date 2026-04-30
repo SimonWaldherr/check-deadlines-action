@@ -4,7 +4,7 @@ import * as fs from 'fs';              // File system module for reading directo
 import * as path from 'path';          // Path module for handling file and directory paths.
 
 const CHECK_START_PATTERN = /@CHECK\(/g;
-const MENTION_FIELD_PATTERN = /^@[^\s;]+$/;
+const MENTION_PATTERN = /^@[^\s;]+$/;
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 const DEFAULT_EXCLUDE = ['node_modules', 'dist'];
 
@@ -168,9 +168,7 @@ function getUtcDayTimestamp(date: Date): number {
     return Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
 }
 
-function findCheckAnnotations(data: string): Array<{ text: string; value: string; index: number }> {
-    const matches: Array<{ text: string; value: string; index: number }> = [];
-
+function* findCheckAnnotations(data: string): Generator<{ text: string; value: string; index: number }> {
     let match: RegExpExecArray | null;
     while ((match = CHECK_START_PATTERN.exec(data)) !== null) {
         const startIndex = match.index;
@@ -185,18 +183,16 @@ function findCheckAnnotations(data: string): Array<{ text: string; value: string
             }
 
             if (depth === 0) {
-                matches.push({
+                yield {
                     text: data.slice(startIndex, i + 1),
                     value: data.slice(valueStartIndex, i),
                     index: startIndex
-                });
+                };
                 CHECK_START_PATTERN.lastIndex = i + 1;
                 break;
             }
         }
     }
-
-    return matches;
 }
 
 function parseDeadlineDate(value: string): number | null {
@@ -225,7 +221,7 @@ function parseDeadlineDate(value: string): number | null {
 
 function parseCheckAnnotation(value: string): { deadlineUtc: number; mentions: string[] } | null {
     const parts = value.split(';').map((part) => part.trim());
-    if (parts.length === 0 || parts[0] === '') {
+    if (parts[0] === '') {
         return null;
     }
 
@@ -234,7 +230,7 @@ function parseCheckAnnotation(value: string): { deadlineUtc: number; mentions: s
         return null;
     }
 
-    const mentions = parts.slice(1).filter((part) => MENTION_FIELD_PATTERN.test(part));
+    const mentions = parts.slice(1).filter((part) => MENTION_PATTERN.test(part));
 
     return { deadlineUtc, mentions };
 }

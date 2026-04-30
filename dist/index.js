@@ -31078,7 +31078,7 @@ const core = __importStar(__nccwpck_require__(7484)); // Provides core functiona
 const fs = __importStar(__nccwpck_require__(9896)); // File system module for reading directories and files.
 const path = __importStar(__nccwpck_require__(6928)); // Path module for handling file and directory paths.
 const CHECK_START_PATTERN = /@CHECK\(/g;
-const MENTION_FIELD_PATTERN = /^@[^\s;]+$/;
+const MENTION_PATTERN = /^@[^\s;]+$/;
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 const DEFAULT_EXCLUDE = ['node_modules', 'dist'];
 /**
@@ -31209,8 +31209,7 @@ function processFile(filePath, warningDays) {
 function getUtcDayTimestamp(date) {
     return Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
 }
-function findCheckAnnotations(data) {
-    const matches = [];
+function* findCheckAnnotations(data) {
     let match;
     while ((match = CHECK_START_PATTERN.exec(data)) !== null) {
         const startIndex = match.index;
@@ -31224,17 +31223,16 @@ function findCheckAnnotations(data) {
                 depth--;
             }
             if (depth === 0) {
-                matches.push({
+                yield {
                     text: data.slice(startIndex, i + 1),
                     value: data.slice(valueStartIndex, i),
                     index: startIndex
-                });
+                };
                 CHECK_START_PATTERN.lastIndex = i + 1;
                 break;
             }
         }
     }
-    return matches;
 }
 function parseDeadlineDate(value) {
     const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
@@ -31255,14 +31253,14 @@ function parseDeadlineDate(value) {
 }
 function parseCheckAnnotation(value) {
     const parts = value.split(';').map((part) => part.trim());
-    if (parts.length === 0 || parts[0] === '') {
+    if (parts[0] === '') {
         return null;
     }
     const deadlineUtc = parseDeadlineDate(parts[0]);
     if (deadlineUtc === null) {
         return null;
     }
-    const mentions = parts.slice(1).filter((part) => MENTION_FIELD_PATTERN.test(part));
+    const mentions = parts.slice(1).filter((part) => MENTION_PATTERN.test(part));
     return { deadlineUtc, mentions };
 }
 function formatMentionSuffix(mentions) {
