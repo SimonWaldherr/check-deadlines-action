@@ -31077,7 +31077,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 const core = __importStar(__nccwpck_require__(7484)); // Provides core functionalities for GitHub Actions such as input retrieval and logging.
 const fs = __importStar(__nccwpck_require__(9896)); // File system module for reading directories and files.
 const path = __importStar(__nccwpck_require__(6928)); // Path module for handling file and directory paths.
-const CHECK_PATTERN = /@CHECK\((\d{4}-\d{2}-\d{2});[^)]+\)/g;
+const CHECK_PATTERN = /@CHECK\(([^)]+)\)/g;
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 /**
  * The main function that is executed when the GitHub Action is triggered.
@@ -31182,7 +31182,7 @@ function processFile(filePath, warningDays) {
     let deadlineExceeded = false;
     let match;
     while ((match = CHECK_PATTERN.exec(data)) !== null) {
-        const deadlineUtc = parseDeadlineDate(match[1]);
+        const parsedCheck = parseCheckAnnotation(match[1]);
         // Determine the line number where the deadline marker is located.
         let line = 1;
         for (let i = 0; i < match.index; i++) {
@@ -31190,17 +31190,19 @@ function processFile(filePath, warningDays) {
                 line++;
             }
         }
-        if (deadlineUtc === null) {
-            core.warning(`Invalid deadline date: ${match[1]}`, { file: filePath, startLine: line });
+        if (parsedCheck === null) {
+            core.warning(`Invalid @CHECK annotation: ${match[0]}`, { file: filePath, startLine: line });
             continue;
         }
+        const { deadlineUtc, mentions } = parsedCheck;
+        const mentionSuffix = formatMentionSuffix(mentions);
         const warningThresholdUtc = deadlineUtc - (warningDays * MS_PER_DAY);
         if (todayUtc > deadlineUtc) {
-            core.warning(`Deadline exceeded: ${match[0]}`, { file: filePath, startLine: line });
+            core.warning(`Deadline exceeded: ${match[0]}${mentionSuffix}`, { file: filePath, startLine: line });
             deadlineExceeded = true;
         }
         else if (todayUtc >= warningThresholdUtc) {
-            core.notice(`Deadline in less than ${warningDays} days: ${match[0]}`, { file: filePath, startLine: line });
+            core.notice(`Deadline in less than ${warningDays} days: ${match[0]}${mentionSuffix}`, { file: filePath, startLine: line });
         }
     }
     return deadlineExceeded;
@@ -31224,6 +31226,24 @@ function parseDeadlineDate(value) {
         return null;
     }
     return deadlineUtc;
+}
+function parseCheckAnnotation(value) {
+    const parts = value.split(';').map((part) => part.trim());
+    if (parts.length < 2) {
+        return null;
+    }
+    const deadlineUtc = parseDeadlineDate(parts[0]);
+    if (deadlineUtc === null) {
+        return null;
+    }
+    const mentions = parts.slice(1).filter((part) => /^@[^\s;]+$/.test(part));
+    return { deadlineUtc, mentions };
+}
+function formatMentionSuffix(mentions) {
+    if (mentions.length === 0) {
+        return '';
+    }
+    return ` (mentions: ${mentions.join(', ')})`;
 }
 // Execute the main function.
 run();

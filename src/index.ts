@@ -3,7 +3,7 @@ import * as core from '@actions/core';  // Provides core functionalities for Git
 import * as fs from 'fs';              // File system module for reading directories and files.
 import * as path from 'path';          // Path module for handling file and directory paths.
 
-const CHECK_PATTERN = /@CHECK\((\d{4}-\d{2}-\d{2});[^)]+\)/g;
+const CHECK_PATTERN = /@CHECK\(([^)]+)\)/g;
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
 /**
@@ -125,7 +125,7 @@ function processFile(filePath: string, warningDays: number): boolean {
 
     let match: RegExpExecArray | null;
     while ((match = CHECK_PATTERN.exec(data)) !== null) {
-        const deadlineUtc = parseDeadlineDate(match[1]);
+        const parsedCheck = parseCheckAnnotation(match[1]);
 
         // Determine the line number where the deadline marker is located.
         let line = 1;
@@ -135,25 +135,28 @@ function processFile(filePath: string, warningDays: number): boolean {
             }
         }
 
-        if (deadlineUtc === null) {
+        if (parsedCheck === null) {
             core.warning(
-                `Invalid deadline date: ${match[1]}`,
+                `Invalid @CHECK annotation: ${match[0]}`,
                 { file: filePath, startLine: line }
             );
             continue;
         }
 
+        const { deadlineUtc, mentions } = parsedCheck;
+        const mentionSuffix = formatMentionSuffix(mentions);
+
         const warningThresholdUtc = deadlineUtc - (warningDays * MS_PER_DAY);
 
         if (todayUtc > deadlineUtc) {
             core.warning(
-                `Deadline exceeded: ${match[0]}`,
+                `Deadline exceeded: ${match[0]}${mentionSuffix}`,
                 { file: filePath, startLine: line }
             );
             deadlineExceeded = true;
         } else if (todayUtc >= warningThresholdUtc) {
             core.notice(
-                `Deadline in less than ${warningDays} days: ${match[0]}`,
+                `Deadline in less than ${warningDays} days: ${match[0]}${mentionSuffix}`,
                 { file: filePath, startLine: line }
             );
         }
@@ -188,6 +191,30 @@ function parseDeadlineDate(value: string): number | null {
     }
 
     return deadlineUtc;
+}
+
+function parseCheckAnnotation(value: string): { deadlineUtc: number; mentions: string[] } | null {
+    const parts = value.split(';').map((part: string) => part.trim());
+    if (parts.length < 2) {
+        return null;
+    }
+
+    const deadlineUtc = parseDeadlineDate(parts[0]);
+    if (deadlineUtc === null) {
+        return null;
+    }
+
+    const mentions = parts.slice(1).filter((part: string) => /^@[^\s;]+$/.test(part));
+
+    return { deadlineUtc, mentions };
+}
+
+function formatMentionSuffix(mentions: string[]): string {
+    if (mentions.length === 0) {
+        return '';
+    }
+
+    return ` (mentions: ${mentions.join(', ')})`;
 }
 
 // Execute the main function.

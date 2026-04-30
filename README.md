@@ -27,6 +27,7 @@ The `@CHECK` annotation is a simple yet powerful tool that allows you to embed d
 - **Description:** This is a brief text that describes the task or reminder. It should be concise yet informative, providing enough detail to understand the purpose of the deadline.
 
 - **AdditionalInfo1, AdditionalInfo2, AdditionalInfo3:** These are optional fields where you can add extra information, such as who is responsible for the task, its priority level, or any other relevant context that might be useful.
+- **Direct mentions:** Any extra field that consists only of an `@username`-style value (for example `@alice` or `@group/team`) is surfaced in warning/notice messages as mention metadata.
 
 ### Example
 
@@ -38,6 +39,15 @@ function exampleFunction() {
     // Function logic here
 }
 ```
+
+```javascript
+// @CHECK(2027-06-06; Review the implementation of this function; @alice; @team/platform)
+function exampleFunctionWithMentions() {
+    // Function logic here
+}
+```
+
+Plain `@username` text inside action annotations is only displayed as text. It does **not** trigger GitHub or GitLab notifications unless you separately post comments through their APIs.
 
 If this deadline passes without the task being completed, the action will trigger a [warning and fail the check](https://github.com/SimonWaldherr/check-deadlines-action/actions/runs/14362124092/job/40266059964) during your CI/CD run.  
 You can configure the github workflow to run on each push (or any other event) or [schedule via cron](https://github.com/SimonWaldherr/check-deadlines-action/blob/3bc3a739ddc947461a5f428f99095ef23209434e/.github/workflows/check-deadlines.yml#L11).  
