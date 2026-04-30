@@ -96,7 +96,7 @@ jobs:
 - **`dir`**: The directory to search for deadlines. Default is `.`.
 - **`warn-only`**: When set to `true`, the action emits warnings but does **not** fail when deadlines are exceeded. Default is `false`.
 - **`warning-days`**: Number of days before the deadline to start emitting notice annotations. Default is `7`.
-- **`exclude`**: Comma-separated list of directory or file names to skip during scanning. Default is `''`.
+- **`exclude`**: Comma-separated list of directory or file names to skip during scanning. `node_modules` and `dist` are skipped automatically, and any configured values are added to that default list.
 
 ### Output
 

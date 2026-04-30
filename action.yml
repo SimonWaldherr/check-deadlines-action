@@ -17,7 +17,7 @@ inputs:
     required: false
     default: '7'
   exclude:
-    description: 'Comma-separated list of directory or file names to exclude from scanning'
+    description: 'Comma-separated list of directory or file names to exclude from scanning. node_modules and dist are always skipped.'
     required: false
     default: ''
 runs:

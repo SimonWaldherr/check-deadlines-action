@@ -6,6 +6,7 @@ import * as path from 'path';          // Path module for handling file and dire
 const CHECK_PATTERN = /@CHECK\(([^)]+)\)/g;
 const MENTION_FIELD_PATTERN = /^@[^\s;]+$/;
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
+const DEFAULT_EXCLUDE = ['node_modules', 'dist'];
 
 /**
  * The main function that is executed when the GitHub Action is triggered.
@@ -29,9 +30,7 @@ async function run(): Promise<void> {
 
         // Comma-separated list of directory or file names to exclude from scanning.
         const excludeInput: string = core.getInput('exclude');
-        const exclude: string[] = excludeInput
-            ? excludeInput.split(',').map((s: string) => s.trim()).filter(Boolean)
-            : [];
+        const exclude: string[] = parseExcludeInput(excludeInput);
 
         // Check if any file in the specified directory (and subdirectories) has an exceeded deadline.
         const deadlineExceeded: boolean = checkDeadlines(dir, warningDays, exclude);
@@ -105,7 +104,7 @@ function getFiles(dir: string, exclude: string[]): string[] {
 /**
  * Processes a single file to check if it contains deadline markers and whether deadlines are exceeded.
  *
- * The deadline markers are expected to be in the format: @CHECK(YYYY-MM-DD; any text)
+ * The deadline markers contain a YYYY-MM-DD date followed by optional text fields.
  *
  * @param filePath    - The full path of the file to be processed.
  * @param warningDays - Number of days before the deadline to emit a warning notice.
@@ -216,6 +215,14 @@ function formatMentionSuffix(mentions: string[]): string {
     }
 
     return ` (mentions: ${mentions.join(', ')})`;
+}
+
+function parseExcludeInput(value: string): string[] {
+    const configuredExcludes = value
+        ? value.split(',').map((entry: string) => entry.trim()).filter(Boolean)
+        : [];
+
+    return Array.from(new Set([...DEFAULT_EXCLUDE, ...configuredExcludes]));
 }
 
 // Execute the main function.

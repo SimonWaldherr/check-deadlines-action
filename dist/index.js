@@ -31080,6 +31080,7 @@ const path = __importStar(__nccwpck_require__(6928)); // Path module for handlin
 const CHECK_PATTERN = /@CHECK\(([^)]+)\)/g;
 const MENTION_FIELD_PATTERN = /^@[^\s;]+$/;
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
+const DEFAULT_EXCLUDE = ['node_modules', 'dist'];
 /**
  * The main function that is executed when the GitHub Action is triggered.
  * It retrieves the directory input, checks for deadline conditions in files,
@@ -31100,9 +31101,7 @@ function run() {
             const warningDays = warningDaysRaw;
             // Comma-separated list of directory or file names to exclude from scanning.
             const excludeInput = core.getInput('exclude');
-            const exclude = excludeInput
-                ? excludeInput.split(',').map((s) => s.trim()).filter(Boolean)
-                : [];
+            const exclude = parseExcludeInput(excludeInput);
             // Check if any file in the specified directory (and subdirectories) has an exceeded deadline.
             const deadlineExceeded = checkDeadlines(dir, warningDays, exclude);
             // If at least one deadline is exceeded and warn-only is not set, mark the action as failed.
@@ -31164,7 +31163,7 @@ function getFiles(dir, exclude) {
 /**
  * Processes a single file to check if it contains deadline markers and whether deadlines are exceeded.
  *
- * The deadline markers are expected to be in the format: @CHECK(YYYY-MM-DD; any text)
+ * The deadline markers contain a YYYY-MM-DD date followed by optional text fields.
  *
  * @param filePath    - The full path of the file to be processed.
  * @param warningDays - Number of days before the deadline to emit a warning notice.
@@ -31245,6 +31244,12 @@ function formatMentionSuffix(mentions) {
         return '';
     }
     return ` (mentions: ${mentions.join(', ')})`;
+}
+function parseExcludeInput(value) {
+    const configuredExcludes = value
+        ? value.split(',').map((entry) => entry.trim()).filter(Boolean)
+        : [];
+    return Array.from(new Set([...DEFAULT_EXCLUDE, ...configuredExcludes]));
 }
 // Execute the main function.
 run();
