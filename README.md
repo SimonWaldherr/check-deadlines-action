@@ -27,7 +27,7 @@ The `@CHECK` annotation is a simple yet powerful tool that allows you to embed d
 - **Description:** This is a brief text that describes the task or reminder. It should be concise yet informative, providing enough detail to understand the purpose of the deadline.
 
 - **AdditionalInfo1, AdditionalInfo2, AdditionalInfo3:** These are optional fields where you can add extra information, such as who is responsible for the task, its priority level, or any other relevant context that might be useful.
-- **Direct mentions:** Any extra field that consists only of an `@username`-style value (for example `@alice` or `@group/team`) is surfaced in warning/notice messages as mention metadata, appended as a `(mentions: @alice, @group/team)` suffix.
+- **Direct mentions:** Any extra semicolon-delimited field that consists only of an `@username`-style value (for example `@alice` or `@group/team`) is surfaced in warning/notice messages as mention metadata, appended as a `(mentions: @alice, @group/team)` suffix.
 
 ### Example
 

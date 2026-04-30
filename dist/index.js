@@ -31078,7 +31078,7 @@ const core = __importStar(__nccwpck_require__(7484)); // Provides core functiona
 const fs = __importStar(__nccwpck_require__(9896)); // File system module for reading directories and files.
 const path = __importStar(__nccwpck_require__(6928)); // Path module for handling file and directory paths.
 const CHECK_PATTERN = /@CHECK\(([^)]+)\)/g;
-const USERNAME_MENTION_PATTERN = /^@[^\s;]+$/;
+const MENTION_FIELD_PATTERN = /^@[^\s;]+$/;
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 /**
  * The main function that is executed when the GitHub Action is triggered.
@@ -31237,7 +31237,7 @@ function parseCheckAnnotation(value) {
     if (deadlineUtc === null) {
         return null;
     }
-    const mentions = parts.slice(1).filter((part) => USERNAME_MENTION_PATTERN.test(part));
+    const mentions = parts.slice(1).filter((part) => MENTION_FIELD_PATTERN.test(part));
     return { deadlineUtc, mentions };
 }
 function formatMentionSuffix(mentions) {
