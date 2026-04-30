@@ -31073,6 +31073,10 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.findCheckAnnotations = findCheckAnnotations;
+exports.parseCheckAnnotation = parseCheckAnnotation;
+exports.formatMentionSuffix = formatMentionSuffix;
+exports.parseExcludeInput = parseExcludeInput;
 // Import necessary modules from the GitHub Actions toolkit and Node.js standard libraries.
 const core = __importStar(__nccwpck_require__(7484)); // Provides core functionalities for GitHub Actions such as input retrieval and logging.
 const fs = __importStar(__nccwpck_require__(9896)); // File system module for reading directories and files.
@@ -31306,7 +31310,9 @@ function parseExcludeInput(value) {
     return Array.from(new Set([...DEFAULT_EXCLUDE, ...configuredExcludes]));
 }
 // Execute the main function.
-run();
+if (require.main === require.cache[eval('__filename')]) {
+    run();
+}
 
 
 /***/ }),

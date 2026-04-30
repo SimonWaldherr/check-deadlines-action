@@ -3,7 +3,8 @@
   "version": "2.0.0",
   "main": "dist/index.js",
   "scripts": {
-    "build": "ncc build src/index.ts -o dist"
+    "build": "ncc build src/index.ts -o dist",
+    "test": "npm run build && node --test test/*.test.js"
   },
   "dependencies": {
     "@actions/core": "^1.11.1"

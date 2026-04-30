@@ -281,5 +281,14 @@ function parseExcludeInput(value: string): string[] {
     return Array.from(new Set([...DEFAULT_EXCLUDE, ...configuredExcludes]));
 }
 
+export {
+    findCheckAnnotations,
+    parseCheckAnnotation,
+    formatMentionSuffix,
+    parseExcludeInput
+};
+
 // Execute the main function.
-run();
+if (require.main === module) {
+    run();
+}
