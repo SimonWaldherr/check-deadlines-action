@@ -194,7 +194,7 @@ function parseDeadlineDate(value: string): number | null {
 }
 
 function parseCheckAnnotation(value: string): { deadlineUtc: number; mentions: string[] } | null {
-    const parts = value.split(';').map((part: string) => part.trim());
+    const parts = value.split(';').map((part) => part.trim());
     if (parts.length < 2) {
         return null;
     }
@@ -204,7 +204,7 @@ function parseCheckAnnotation(value: string): { deadlineUtc: number; mentions: s
         return null;
     }
 
-    const mentions = parts.slice(1).filter((part: string) => /^@[^\s;]+$/.test(part));
+    const mentions = parts.slice(1).filter((part) => /^@[^\s;]+$/.test(part));
 
     return { deadlineUtc, mentions };
 }
