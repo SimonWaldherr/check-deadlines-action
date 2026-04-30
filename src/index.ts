@@ -3,7 +3,7 @@ import * as core from '@actions/core';  // Provides core functionalities for Git
 import * as fs from 'fs';              // File system module for reading directories and files.
 import * as path from 'path';          // Path module for handling file and directory paths.
 
-const CHECK_PATTERN = /@CHECK\(([^)]+)\)/g;
+const CHECK_PATTERN = /@CHECK\(([^)]*)\)/g;
 const MENTION_FIELD_PATTERN = /^@[^\s;]+$/;
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 const DEFAULT_EXCLUDE = ['node_modules', 'dist'];

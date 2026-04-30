@@ -31077,7 +31077,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 const core = __importStar(__nccwpck_require__(7484)); // Provides core functionalities for GitHub Actions such as input retrieval and logging.
 const fs = __importStar(__nccwpck_require__(9896)); // File system module for reading directories and files.
 const path = __importStar(__nccwpck_require__(6928)); // Path module for handling file and directory paths.
-const CHECK_PATTERN = /@CHECK\(([^)]+)\)/g;
+const CHECK_PATTERN = /@CHECK\(([^)]*)\)/g;
 const MENTION_FIELD_PATTERN = /^@[^\s;]+$/;
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 const DEFAULT_EXCLUDE = ['node_modules', 'dist'];

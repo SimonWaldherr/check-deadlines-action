@@ -53,7 +53,7 @@ function exampleFunctionWithMentions() {
 }
 ```
 
-Plain `@username` text inside emitted workflow annotations is only displayed as text. It does **not** trigger GitHub or GitLab notifications unless you separately post comments through their APIs.
+Plain `@username` text inside workflow annotations is only displayed as text. It does **not** trigger GitHub or GitLab notifications unless you separately post comments through their APIs.
 
 If this deadline passes without the task being completed, the action will trigger a [warning and fail the check](https://github.com/SimonWaldherr/check-deadlines-action/actions/runs/14362124092/job/40266059964) during your CI/CD run.  
 You can configure the github workflow to run on each push (or any other event) or [schedule via cron](https://github.com/SimonWaldherr/check-deadlines-action/blob/3bc3a739ddc947461a5f428f99095ef23209434e/.github/workflows/check-deadlines.yml#L11).  
