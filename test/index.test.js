@@ -8,20 +8,22 @@ const {
   parseExcludeInput
 } = require('../dist/index.js');
 
+const check = '@' + 'CHECK';
+
 test('findCheckAnnotations handles multiple annotations and nested parentheses', () => {
   const data = [
-    '// @CHECK(2026-12-31; note (with parens))',
-    '// @CHECK(2027-01-01; second)'
+    `// ${check}(2026-12-31; note (with parens))`,
+    `// ${check}(2027-01-01; second)`
   ].join('\n');
 
   assert.deepEqual(Array.from(findCheckAnnotations(data)), [
     {
-      text: '@CHECK(2026-12-31; note (with parens))',
+      text: `${check}(2026-12-31; note (with parens))`,
       value: '2026-12-31; note (with parens)',
       index: 3
     },
     {
-      text: '@CHECK(2027-01-01; second)',
+      text: `${check}(2027-01-01; second)`,
       value: '2027-01-01; second',
       index: 45
     }
@@ -29,7 +31,7 @@ test('findCheckAnnotations handles multiple annotations and nested parentheses',
 });
 
 test('findCheckAnnotations ignores unclosed annotations', () => {
-  assert.deepEqual(Array.from(findCheckAnnotations('// @CHECK(2026-12-31')), []);
+  assert.deepEqual(Array.from(findCheckAnnotations(`// ${check}(2026-12-31`)), []);
 });
 
 test('parseCheckAnnotation validates dates and extracts mentions', () => {
