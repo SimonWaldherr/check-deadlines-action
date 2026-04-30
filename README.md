@@ -22,6 +22,7 @@ The `@CHECK` annotation is a simple yet powerful tool that allows you to embed d
 ```
 
 - **Date (YYYY-MM-DD):** The first component is the deadline date in the `YYYY-MM-DD` format. This date indicates when the task should be completed. The action compares this date against the current date to determine if the deadline has passed.
+- Deadline dates are treated as **inclusive calendar days**. A deadline of `2026-12-31` becomes overdue on `2027-01-01`.
   
 - **Description:** This is a brief text that describes the task or reminder. It should be concise yet informative, providing enough detail to understand the purpose of the deadline.
 
