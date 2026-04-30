@@ -196,7 +196,7 @@ function parseDeadlineDate(value: string): number | null {
 
 function parseCheckAnnotation(value: string): { deadlineUtc: number; mentions: string[] } | null {
     const parts = value.split(';').map((part) => part.trim());
-    if (parts.length < 2) {
+    if (parts.length === 0 || parts[0] === '') {
         return null;
     }
 

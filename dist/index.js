@@ -31230,7 +31230,7 @@ function parseDeadlineDate(value) {
 }
 function parseCheckAnnotation(value) {
     const parts = value.split(';').map((part) => part.trim());
-    if (parts.length < 2) {
+    if (parts.length === 0 || parts[0] === '') {
         return null;
     }
     const deadlineUtc = parseDeadlineDate(parts[0]);

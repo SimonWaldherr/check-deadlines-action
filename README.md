@@ -21,10 +21,16 @@ The `@CHECK` annotation is a simple yet powerful tool that allows you to embed d
 @CHECK(2026-12-31; Description; Additional; Info; Here)
 ```
 
+You can also use just a date:
+
+```yaml
+@CHECK(2026-12-31)
+```
+
 - **Date (YYYY-MM-DD):** The first component is the deadline date in the `YYYY-MM-DD` format. This date indicates when the task should be completed. The action compares this date against the current date to determine if the deadline has passed.
 - Deadline dates are treated as **inclusive calendar days**. A deadline of `2026-12-31` becomes overdue on `2027-01-01`.
   
-- **Description:** This is a brief text that describes the task or reminder. It should be concise yet informative, providing enough detail to understand the purpose of the deadline.
+- **Description:** This is an optional brief text that describes the task or reminder. It should be concise yet informative, providing enough detail to understand the purpose of the deadline.
 
 - **AdditionalInfo1, AdditionalInfo2, AdditionalInfo3:** These are optional fields where you can add extra information, such as who is responsible for the task, its priority level, or any other relevant context that might be useful.
 - **Direct mentions:** Any extra semicolon-delimited field that consists only of an `@username`-style value (for example `@alice` or `@group/team`) is surfaced in warning/notice messages as mention metadata, appended as a `(mentions: @alice, @group/team)` suffix.
@@ -47,7 +53,7 @@ function exampleFunctionWithMentions() {
 }
 ```
 
-Plain `@username` text inside action annotations is only displayed as text. It does **not** trigger GitHub or GitLab notifications unless you separately post comments through their APIs.
+Plain `@username` text inside emitted workflow annotations is only displayed as text. It does **not** trigger GitHub or GitLab notifications unless you separately post comments through their APIs.
 
 If this deadline passes without the task being completed, the action will trigger a [warning and fail the check](https://github.com/SimonWaldherr/check-deadlines-action/actions/runs/14362124092/job/40266059964) during your CI/CD run.  
 You can configure the github workflow to run on each push (or any other event) or [schedule via cron](https://github.com/SimonWaldherr/check-deadlines-action/blob/3bc3a739ddc947461a5f428f99095ef23209434e/.github/workflows/check-deadlines.yml#L11).  
