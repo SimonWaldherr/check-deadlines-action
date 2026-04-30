@@ -4,6 +4,7 @@ import * as fs from 'fs';              // File system module for reading directo
 import * as path from 'path';          // Path module for handling file and directory paths.
 
 const CHECK_PATTERN = /@CHECK\(([^)]+)\)/g;
+const DIRECT_MENTION_PATTERN = /^@[^\s;]+$/;
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
 /**
@@ -204,7 +205,7 @@ function parseCheckAnnotation(value: string): { deadlineUtc: number; mentions: s
         return null;
     }
 
-    const mentions = parts.slice(1).filter((part) => /^@[^\s;]+$/.test(part));
+    const mentions = parts.slice(1).filter((part) => DIRECT_MENTION_PATTERN.test(part));
 
     return { deadlineUtc, mentions };
 }
