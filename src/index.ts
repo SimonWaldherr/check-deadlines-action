@@ -3,6 +3,9 @@ import * as core from '@actions/core';  // Provides core functionalities for Git
 import * as fs from 'fs';              // File system module for reading directories and files.
 import * as path from 'path';          // Path module for handling file and directory paths.
 
+const CHECK_PATTERN = /@CHECK\((\d{4}-\d{2}-\d{2});[^)]+\)/g;
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
 /**
  * The main function that is executed when the GitHub Action is triggered.
  * It retrieves the directory input, checks for deadline conditions in files,
@@ -116,19 +119,13 @@ function processFile(filePath: string, warningDays: number): boolean {
         return false;
     }
 
-    // Regular expression to match the deadline markers.
-    // It captures a date in the format YYYY-MM-DD followed by a semicolon and any characters until the closing parenthesis.
-    const regex: RegExp = /@CHECK\((\d{4}-\d{2}-\d{2});[^)]+\)/g;
-
-    // Get the current date and time.
-    const now: Date = new Date();
+    const todayUtc = getUtcDayTimestamp(new Date());
 
     let deadlineExceeded: boolean = false;
 
     let match: RegExpExecArray | null;
-    while ((match = regex.exec(data)) !== null) {
-        // Parse the deadline date from the first captured group of the regex.
-        const deadline: Date = new Date(match[1]);
+    while ((match = CHECK_PATTERN.exec(data)) !== null) {
+        const deadlineUtc = parseDeadlineDate(match[1]);
 
         // Determine the line number where the deadline marker is located.
         let line = 1;
@@ -138,19 +135,23 @@ function processFile(filePath: string, warningDays: number): boolean {
             }
         }
 
-        // Calculate the date `warningDays` days before the actual deadline.
-        const warningThreshold = new Date(deadline);
-        warningThreshold.setDate(deadline.getDate() - warningDays);
+        if (deadlineUtc === null) {
+            core.warning(
+                `Invalid deadline date: ${match[1]}`,
+                { file: filePath, startLine: line }
+            );
+            continue;
+        }
 
-        // Check if the current date is past the deadline.
-        if (now > deadline) {
+        const warningThresholdUtc = deadlineUtc - (warningDays * MS_PER_DAY);
+
+        if (todayUtc > deadlineUtc) {
             core.warning(
                 `Deadline exceeded: ${match[0]}`,
                 { file: filePath, startLine: line }
             );
             deadlineExceeded = true;
-        } else if (now > warningThreshold) {
-            // Deadline is approaching within the warning window.
+        } else if (todayUtc >= warningThresholdUtc) {
             core.notice(
                 `Deadline in less than ${warningDays} days: ${match[0]}`,
                 { file: filePath, startLine: line }
@@ -159,6 +160,34 @@ function processFile(filePath: string, warningDays: number): boolean {
     }
 
     return deadlineExceeded;
+}
+
+function getUtcDayTimestamp(date: Date): number {
+    return Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
+}
+
+function parseDeadlineDate(value: string): number | null {
+    const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+    if (!match) {
+        return null;
+    }
+
+    const year = Number(match[1]);
+    const monthIndex = Number(match[2]) - 1;
+    const day = Number(match[3]);
+
+    const deadlineUtc = Date.UTC(year, monthIndex, day);
+    const deadline = new Date(deadlineUtc);
+
+    if (
+        deadline.getUTCFullYear() !== year ||
+        deadline.getUTCMonth() !== monthIndex ||
+        deadline.getUTCDate() !== day
+    ) {
+        return null;
+    }
+
+    return deadlineUtc;
 }
 
 // Execute the main function.
