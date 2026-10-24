@@ -10,6 +10,9 @@ on:
   schedule:
     - cron: '0 13 * * 5'
 
+permissions:
+  contents: read
+
 jobs:
   check-deadlines:
     runs-on: ubuntu-latest
@@ -21,12 +24,16 @@ jobs:
       uses: actions/setup-node@v4
       with:
         node-version: '20'
+        cache: 'npm'
 
     - name: Install dependencies
-      run: npm install
+      run: npm ci
 
-    - name: Build the project
-      run: npm run build
+    - name: Type-check, build, and test
+      run: npm test
+
+    - name: Verify committed action bundle
+      run: git diff --exit-code -- dist/index.js
 
     - name: Run Check Deadlines Action
       uses: ./

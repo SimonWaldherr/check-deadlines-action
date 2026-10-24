@@ -28,7 +28,7 @@ You can also use just a date:
 ```
 
 - **Date (YYYY-MM-DD):** The first component is the deadline date in the `YYYY-MM-DD` format. This date indicates when the task should be completed. The action compares this date against the current date to determine if the deadline has passed.
-- Deadline dates are treated as **inclusive calendar days**. A deadline of `2026-12-31` becomes overdue on `2027-01-01`.
+- Deadline dates are treated as **inclusive UTC calendar days**. A deadline of `2026-12-31` becomes overdue on `2027-01-01` UTC, regardless of the runner's timezone.
   
 - **Description:** This is an optional brief text that describes the task or reminder. It should be concise yet informative, providing enough detail to understand the purpose of the deadline.
 
@@ -82,7 +82,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     - name: Check Deadlines
       uses: SimonWaldherr/check-deadlines-action@main
       with:
@@ -95,12 +95,18 @@ jobs:
 
 - **`dir`**: The directory to search for deadlines. Default is `.`.
 - **`warn-only`**: When set to `true`, the action emits warnings but does **not** fail when deadlines are exceeded. Default is `false`.
-- **`warning-days`**: Number of days before the deadline to start emitting notice annotations. Default is `7`.
+- **`warning-days`**: Non-negative integer number of days before the deadline to start emitting notice annotations. Default is `7`. The warning window includes its first day and the deadline day; `0` emits notices only on the deadline day. Fractional values and values such as `7days` are rejected.
 - **`exclude`**: Comma-separated list of directory or file names to skip during scanning. `node_modules` and `dist` are skipped automatically, and any configured values are added to that default list.
+
+### Scanning behavior
+
+The action scans regular files recursively. Exclusions match exact file or directory names at every depth; they are not glob patterns or relative paths. Hidden directories, symbolic links, special files, and binary files containing NUL bytes are skipped. Hidden regular files are scanned.
+
+Annotations can span multiple lines and contain nested parentheses. Invalid dates produce warnings. Unclosed annotations are ignored; later complete annotations are still checked. If a directory or regular file cannot be read, the action fails with an error, including in `warn-only` mode.
 
 ### Output
 
-When a deadline has passed, the action will output the specific line in the code where the `@CHECK` annotation is found and fail the workflow, ensuring that overdue tasks are not overlooked.
+When a deadline has passed, the action reports the file and line where the `@CHECK` annotation starts and fails the workflow. It continues scanning to report all overdue deadlines. Upcoming deadlines produce notices with the actual number of days remaining, such as `Deadline in 2 days`.
 
 ## Development
 
@@ -109,19 +115,21 @@ When a deadline has passed, the action will output the specific line in the code
 To contribute to the Check Deadlines Action or customize it for your own needs, you can build the project locally. The action is written in TypeScript, and you can build it using the following commands:
 
 ```sh
-npm install
+npm ci
 npm run build
 ```
 
+The bundled `dist/index.js` is committed because GitHub executes it directly. Rebuild and include it whenever the source or dependencies change; CI checks that it matches the source.
+
 ### Test
 
-Testing the action locally is straightforward with the [act](https://github.com/nektos/act) tool, which allows you to run GitHub Actions on your local machine:
+Run the TypeScript check, rebuild the action, and execute unit and integration tests:
 
 ```sh
-act
+npm test
 ```
 
-This will simulate the GitHub Actions environment and help you test the action before pushing changes to your repository.
+Integration tests execute the bundled action against temporary directories and check annotations, exit codes, UTC date boundaries, input validation, and exclusions. Use `npm run typecheck` to check types separately. CI runs `npm test` before scanning the repository itself.
 
 ## Contributing
 
